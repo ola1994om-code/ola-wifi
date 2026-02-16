@@ -1,0 +1,2343 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover"/>
+  <meta name="theme-color" content="#2563eb"/>
+  <title>WiFi Accounting — نظام محاسبة شركة إنترنت (إيصالات)</title>
+
+  <style>
+    :root{
+      --bg1:#f6f9ff;
+      --bg2:#eef5ff;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:#e5e7eb;
+      --brand:#2563eb;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --r:18px;
+      --shadow: 0 12px 30px rgba(15,23,42,.08);
+
+      --headerH: 150px; /* يتم تحديثه تلقائياً بالـ JS */
+      --safeTop: env(safe-area-inset-top, 0px);
+      --safeBot: env(safe-area-inset-bottom, 0px);
+    }
+
+    *{box-sizing:border-box}
+    html, body{
+      height:100%;
+      overflow:hidden; /* ✅ الصفحة نفسها بدون تمرير */
+    }
+    body{
+      margin:0;
+      font-family:Tahoma,Arial;
+      background:linear-gradient(180deg,var(--bg1),var(--bg2));
+      color:var(--text);
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    .container{max-width:1200px;margin:auto;padding:14px}
+
+    /* Header fixed */
+    header{
+      position:fixed;
+      top:0; left:0; right:0;
+      z-index:50;
+      background:rgba(246,249,255,.90);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--line);
+      padding-top: var(--safeTop);
+    }
+
+    .brand{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    }
+    .brand h1{margin:0;font-size:18px}
+    .pill{font-size:12px;color:var(--muted);line-height:1.4}
+
+    .tabs{
+      display:flex;gap:8px;flex-wrap:wrap;margin-top:10px
+    }
+    .tab{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:999px;
+      padding:10px 12px;
+      cursor:pointer;
+      font-size:13px;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .tab.active{background:var(--brand);border-color:var(--brand);color:#fff}
+
+    /* Main fixed area */
+    #appMain{
+      position:fixed;
+      top: calc(var(--headerH) + var(--safeTop));
+      left:0; right:0;
+      bottom: var(--safeBot);
+      overflow:hidden; /* ✅ */
+    }
+    #appMain .container{
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      padding-bottom: calc(14px + var(--safeBot));
+    }
+
+    /* Stats */
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .stat{
+      flex:1;min-width:220px;
+      padding:12px 14px;
+      border-radius:16px;
+      border:1px solid var(--line);
+      background:#fff;
+    }
+    .stat .k{font-size:12px;color:var(--muted)}
+    .stat .v{font-size:20px;margin-top:6px}
+
+    /* Grid */
+    .grid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:12px;
+      flex:1;
+      min-height:0;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+
+      display:flex;
+      flex-direction:column;
+      min-height:0; /* مهم للـ overflow داخل body */
+    }
+    .card .hd{
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      flex:0 0 auto;
+    }
+    .card .bd{
+      padding:12px 14px;
+      overflow:auto;      /* ✅ التمرير داخل المحتوى فقط */
+      -webkit-overflow-scrolling: touch; /* ✅ Fix iOS freeze */
+      min-height:0;
+      flex:1 1 auto;
+    }
+
+    h2{margin:0;font-size:14px}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select,textarea{
+      width:100%;
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:#fff;
+      outline:none;
+      font-size:13px;
+    }
+    textarea{min-height:80px;resize:vertical}
+
+    .btn{
+      border:1px solid var(--line);
+      background:#fff;
+      border-radius:12px;
+      padding:10px 12px;
+      cursor:pointer;
+      font-size:13px;
+      display:inline-flex;align-items:center;gap:8px;
+      user-select:none;
+      touch-action: manipulation;
+      white-space:nowrap;
+    }
+    .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+    .btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+    .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{
+      padding:10px;border-bottom:1px solid var(--line);
+      font-size:13px;text-align:right;vertical-align:top;
+    }
+    th{color:var(--muted);font-weight:700;font-size:12px}
+
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      border-radius:999px;padding:6px 10px;
+      font-size:12px;border:1px solid var(--line);background:#fff
+    }
+    .b-ok{border-color:rgba(22,163,74,.25);background:rgba(22,163,74,.08);color:var(--ok)}
+    .b-warn{border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.10);color:var(--warn)}
+    .b-danger{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.10);color:var(--danger)}
+    .muted{color:var(--muted)}
+    .tiny{font-size:11px;color:var(--muted)}
+    .split{display:flex;gap:10px;flex-wrap:wrap}
+    .split > *{flex:1;min-width:160px}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .search{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .search input{max-width:360px}
+
+    /* Countdown cards (NO circle overlay ✅) */
+    .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .ccard{
+      border:1px solid rgba(15,23,42,.08);
+      border-radius:22px;
+      box-shadow:0 18px 44px rgba(2,6,23,.10);
+      padding:14px 14px;
+      cursor:pointer;
+      color:#0f172a;
+      position:relative;
+      overflow:hidden;
+      touch-action: manipulation;
+    }
+
+    .ccard .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .ccard .name{font-size:15px;font-weight:900}
+    .ccard .meta{margin-top:4px}
+
+    .countdown{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .cd{
+      min-width:74px;
+      padding:10px 10px;
+      border-radius:16px;
+      border:1px solid rgba(15,23,42,.10);
+      background:rgba(255,255,255,.78);
+      text-align:center;
+      backdrop-filter: blur(8px);
+    }
+    .cd .n{font-size:18px;font-weight:900;color:#0f172a}
+    .cd .t{font-size:11px;color:#334155;margin-top:3px}
+
+    .pill2{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line);background:#fff;font-size:12px
+    }
+
+    
+    /* Receipt layout (screen + print) */
+    .receiptScreen{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      padding:12px;
+      overflow:hidden;
+    }
+    .receiptRow{display:flex;gap:12px;height:100%}
+    .receiptCol{display:flex;flex-direction:column;gap:10px;height:100%}
+    .copy{flex:1;min-width:0;display:flex;flex-direction:column}
+    .receiptRow .copy + .copy{border-inline-start:1px dashed #cbd5e1;padding-inline-start:12px;margin-inline-start:0}
+    .rhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+    .rbrand{display:flex;gap:10px;align-items:center;min-width:0}
+    .rlogo{width:44px;height:44px;object-fit:contain;border:1px solid var(--line);border-radius:14px;padding:4px;background:#fff;flex:0 0 auto}
+    .rlogo.alt{display:flex;align-items:center;justify-content:center;font-size:20px}
+    .rbrandTxt{min-width:0}
+    .rbrandName{font-weight:900;font-size:14px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rbrandMeta{font-size:11px;color:var(--muted);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .copyTag{font-size:11px;font-weight:900;border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:#f8fafc;white-space:nowrap}
+    .rline{height:1px;background:#e5e7eb;margin:8px 0}
+    .rrow{display:flex;justify-content:space-between;gap:10px;font-size:12px}
+    .rrow span{color:var(--muted)}
+    .rmuted{font-size:11px;color:var(--muted);margin-top:2px}
+    .rsig{margin-top:auto;border-top:1px dashed #cbd5e1;padding-top:8px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+
+    @media print{
+      .receiptScreen{ box-shadow:none !important; }
+      .receiptRow{ gap:0 !important; }
+      .receiptRow .copy + .copy{ padding-inline-start:2mm !important; }
+      .rlogo{ width:9mm !important; height:9mm !important; border-radius:3mm !important; padding:1mm !important; }
+      .rbrandName{ font-size:10pt !important; }
+      .rbrandMeta{ font-size:7.5pt !important; }
+      .copyTag{ font-size:7.5pt !important; padding:1mm 2mm !important; }
+      .rline{ margin:1.5mm 0 !important; }
+      .rrow{ font-size:8.5pt !important; }
+      .rmuted{ font-size:7.5pt !important; }
+      .rsig{ font-size:7.5pt !important; padding-top:1.5mm !important; }
+    }
+/* Overlays */
+    .overlay{
+      position:fixed;inset:0;
+      background:rgba(2,6,23,.55);
+      display:none;
+      align-items:center;justify-content:center;
+      padding:12px;
+      z-index:80;
+    }
+    .overlay.show{display:flex}
+    .box{
+      width:min(980px,100%);
+      background:#fff;
+      border-radius:18px;
+      border:1px solid var(--line);
+      box-shadow:0 30px 80px rgba(0,0,0,.25);
+      overflow:hidden;
+      max-height:calc(100vh - 24px);
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .box .hd{
+      padding:12px 14px;border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+    }
+    .box .bd{
+      padding:14px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch; /* ✅ Fix iOS freeze */
+      min-height:0
+    }
+
+    /* Receipt fullscreen page (NO SCROLL, auto fit) */
+    .invpage{
+      position:fixed;inset:0;background:#f8fafc;
+      display:none;flex-direction:column;z-index:90;
+    }
+    .invpage.show{display:flex}
+
+    .invbar{
+      background:rgba(246,249,255,.92);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);
+      padding:10px 12px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+      padding-top: var(--safeTop);
+    }
+    .invbar .title{font-weight:900}
+
+    .invcontent{
+      padding:10px;
+      height: calc(100vh - 74px - var(--safeTop));
+      overflow:hidden; /* ✅ ممنوع تمرير داخل عرض الإيصال */
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding-bottom: var(--safeBot);
+    }
+
+    #invoiceStage{
+      display:inline-block;
+      transform-origin: top center;
+      will-change: transform;
+    }
+    #invoiceView{display:inline-block}
+
+    /* Bulk print area (hidden on screen) */
+    #printArea{display:none}
+
+    /* Mobile behavior */
+    @media(max-width:980px){
+      .grid{grid-template-columns:1fr}
+      #leftPanel{display:none} /* ✅ نخفي اللوحة اليسار على الهاتف */
+      .cards{grid-template-columns:1fr}
+      .search input{max-width:100%}
+      .row.stats{display:none} /* ✅ لتبقى الشاشة ثابتة */
+    }
+    .btn.addMobile{display:none}
+    @media(max-width:980px){ .btn.addMobile{display:inline-flex} }
+
+    /* Print rules */
+    @media print{
+      header, .no-print, .invbar{display:none !important}
+      body{background:#fff}
+      .invpage{position:static;display:block;background:#fff}
+      .invcontent{height:auto;overflow:visible;padding:0}
+      #invoiceStage{transform:none !important}
+
+      /* bulk printing */
+      body.bulk-printing .invpage{display:none !important}
+      body.bulk-printing #printArea{display:block !important}
+    }
+  </style>
+
+  <style id="dynamicPrintStyle"></style>
+</head>
+
+<body>
+
+<noscript>
+  <div style="position:fixed;inset:0;z-index:9999;background:#fff;padding:18px;font-family:Tahoma,Arial">
+    <div style="max-width:720px;margin:0 auto;border:1px solid #e5e7eb;border-radius:16px;padding:16px">
+      <div style="font-size:18px;font-weight:900;margin-bottom:8px">⚠️ هذا الملف يحتاج JavaScript</div>
+      <div style="color:#475569;line-height:1.6">
+        يبدو أنك فتحته داخل معاينة تمنع تشغيل السكربت (مثل Google Drive/Telegram/بعض مدراء الملفات)، لذلك سيظهر “معلق”.
+        <br><br>
+        <b>الحل:</b>
+        <ol style="margin:8px 0 0;padding-right:18px">
+          <li>نزّل الملف على الهاتف</li>
+          <li>افتح <b>Chrome</b> → الثلاث نقاط → <b>فتح ملف</b> (أو افتحه من “التنزيلات” في Chrome)</li>
+          <li>أو ارفع الملف على <b>Netlify</b> وافتحه كرابط</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</noscript>
+
+<header class="no-print" id="appHeader">
+  <div class="container">
+    <div class="brand">
+      <div>
+        <h1>📶 WiFi Accounting</h1>
+        <div class="pill">نظام محاسبة عصري لشركة إنترنت (زباين • باقات • اشتراكات • إيصالات • دفعات)</div>
+      </div>
+      <div>
+        <span id="authState" class="badge b-warn">تحميل...</span>
+        <span id="miniStats" class="badge" style="margin-inline-start:8px">—</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="dashboard" type="button" onclick="setTab('dashboard')">لوحة التحكم</button>
+      <button class="tab" data-tab="customers" type="button" onclick="setTab('customers')">الزبائن</button>
+      <button class="tab" data-tab="plans" type="button" onclick="setTab('plans')">الباقات</button>
+      <button class="tab" data-tab="subs" type="button" onclick="setTab('subs')">الاشتراكات</button>
+      <button class="tab" data-tab="countdown" type="button" onclick="setTab('countdown')">العدّاد</button>
+      <button class="tab" data-tab="invoices" type="button" onclick="setTab('invoices')">الإيصالات</button>
+      <button class="tab" data-tab="settings" type="button" onclick="setTab('settings')">الإعدادات</button>
+    </div>
+  </div>
+</header>
+
+<main id="appMain">
+  <div class="container">
+
+    <!-- Stats (تختفي على الهاتف لتثبيت الشاشة) -->
+    <div class="row stats no-print" style="margin-bottom:12px">
+      <div class="stat"><div class="k">عدد الزبائن</div><div class="v" id="statCustomers">—</div></div>
+      <div class="stat"><div class="k">اشتراكات فعّالة</div><div class="v" id="statActiveSubs">—</div></div>
+      <div class="stat"><div class="k">مجموع الاشتراكات الشهرية</div><div class="v" id="statMonthly">—</div></div>
+      <div class="stat"><div class="k">إيصالات غير مدفوعة/جزئية</div><div class="v" id="statOpenInv">—</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- Left panel (hidden on mobile) -->
+      <section class="card no-print" id="leftPanel">
+        <div class="hd">
+          <h2 id="leftTitle">—</h2>
+          <span class="tiny" id="leftHint">—</span>
+        </div>
+        <div class="bd" id="leftBody"></div>
+      </section>
+
+      <!-- Main panel -->
+      <section class="card" id="mainPanel">
+        <div class="hd no-print">
+          <h2 id="mainTitle">—</h2>
+          <div class="search">
+            <input id="q" placeholder="بحث شامل: اسم، هاتف، منطقة، يوزر..." oninput="renderCurrent()">
+            <button class="btn addMobile primary" type="button" onclick="openQuickAdd()">＋ إضافة</button>
+            <button class="btn" type="button" onclick="reloadAll(true)">تحديث</button>
+          </div>
+        </div>
+        <div class="bd" id="mainBody">
+  <div style="padding:14px">
+    <div class="badge b-warn">جاري التحميل...</div>
+    <div class="hr"></div>
+    <div class="tiny muted">
+      إذا فتحت الملف داخل معاينة (مثل Google Drive/Telegram/مدير ملفات) ممكن يوقف JavaScript فيظهر “معلق”.
+      افتحه عبر <b>Google Chrome</b> أو ارفعه على Netlify.
+    </div>
+  </div>
+</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- QUICK ADD MODAL (for mobile) -->
+<div class="overlay" id="formModal">
+  <div class="box">
+    <div class="hd no-print">
+      <b id="formModalTitle">إضافة</b>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" onclick="closeFormModal()">إغلاق</button>
+      </div>
+    </div>
+    <div class="bd" id="formModalBody"></div>
+  </div>
+</div>
+
+<!-- CUSTOMER MODAL -->
+<div class="overlay" id="custModal">
+  <div class="box">
+    <div class="hd no-print">
+      <b id="custModalTitle">ملف الزبون</b>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn danger" type="button" onclick="deleteCustomer(currentCustomerId)">حذف الزبون</button>
+        <button class="btn" type="button" onclick="closeCustomerModal()">إغلاق</button>
+      </div>
+    </div>
+    <div class="bd" id="custModalBody"></div>
+  </div>
+</div>
+
+<!-- RECEIPT FULLSCREEN -->
+<div class="invpage" id="invPage">
+  <div class="invbar no-print">
+    <div class="title" id="invPageTitle">إيصال</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" type="button" onclick="setPrintModeAndPrint('a4')">🖨️ A4 (5 إيصالات/ورقة)</button>
+      <button class="btn" type="button" onclick="setPrintModeAndPrint('pos')">🧾 POS 80mm</button>
+      <button class="btn danger" type="button" onclick="deleteInvoice(currentInvoiceId)">🗑️ حذف</button>
+      <button class="btn" type="button" onclick="closeInvoicePage()">إغلاق</button>
+    </div>
+  </div>
+
+  <div class="invcontent" id="invContent">
+    <div id="invoiceStage">
+      <div id="invoiceView"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BULK PRINT -->
+<div id="printArea"></div>
+
+<!-- ✅ Load Supabase right before app script (best for websites) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<script>
+/* =========================
+   SUPABASE CONFIG (عدل فقط هنا)
+   ========================= */
+const SUPABASE_URL = "https://qdzpyimpghxdgkzqrbvo.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkenB5aW1wZ2h4ZGdrenFyYnZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4Mjg3MjUsImV4cCI6MjA4NjQwNDcyNX0.JHDxrsRb3IvnTRZk53WBt_8HZlUPFINTVhYFtc9F694";
+
+let sb = null;
+
+/* =========================
+   STATE
+   ========================= */
+let TAB = "dashboard";
+let settings = null;
+let customers = [];
+let plans = [];
+let subs = [];
+let invoices = []; // (نفس جدول invoices بالسيرفر) لكن نسميها "إيصالات" بالواجهة
+let lastLoadedAt = 0;
+
+let currentInvoiceId = null;
+let currentCustomerId = null;
+
+let lastReceiptData = null; // {inv, items, pays}
+
+let customerSeqMap = new Map(); // id -> 1..n
+let invoiceNoOffset = 0;        // display offset for 1..n
+let countdownTimer = null;
+
+let printMode = "a4";           // 'a4' | 'pos'
+let bulkSelection = new Set();  // invoice IDs
+
+const $ = (id)=>document.getElementById(id);
+
+/* ✅ FIX: robust HTML escaping */
+function esc(s){
+  const map = {
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  };
+  return String(s ?? "").replace(/[&<>"']/g, (m)=>map[m]);
+}
+
+function money(n){
+  if(n===null || n===undefined || isNaN(Number(n))) n = 0;
+  const s = (Math.round(Number(n)*100)/100).toString();
+  return (s.includes('.') ? s.replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1') : s);
+}
+function toast(msg){
+  try{
+    const el = document.getElementById("snackbar");
+    if(el){
+      el.textContent = String(msg||"");
+      el.classList.add("show");
+      clearTimeout(window.__snackT);
+      window.__snackT = setTimeout(()=>el.classList.remove("show"), 4200);
+      return;
+    }
+  }catch(e){}
+  alert(msg);
+}
+
+function statusBadge(st){
+  if(st==="paid") return `<span class="badge b-ok">paid</span>`;
+  if(st==="partial") return `<span class="badge b-warn">partial</span>`;
+  if(st==="void") return `<span class="badge">void</span>`;
+  return `<span class="badge b-danger">unpaid</span>`;
+}
+function badgeDays(days){
+  if(days === null || days === undefined) return `<span class="badge">—</span>`;
+  if(days <= 0) return `<span class="badge b-danger">منتهي</span>`;
+  if(days <= 3) return `<span class="badge b-danger">${days} يوم</span>`;
+  if(days <= 7) return `<span class="badge b-warn">${days} يوم</span>`;
+  return `<span class="badge b-ok">${days} يوم</span>`;
+}
+
+/* =========================
+   Fix header height -> main top
+   ========================= */
+function updateHeaderH(){
+  const h = document.getElementById("appHeader")?.offsetHeight || 150;
+  document.documentElement.style.setProperty("--headerH", h+"px");
+}
+window.addEventListener("resize", ()=>{ updateHeaderH(); fitInvoiceToViewport(); });
+window.addEventListener("orientationchange", ()=> setTimeout(()=>{ updateHeaderH(); fitInvoiceToViewport(); }, 250));
+
+/* =========================
+   Local receipt screen prefs (per device)
+   ========================= */
+const PREF_KEY = "wifi_receipt_screen_prefs_v2";
+function getPrefs(){
+  const d = { invW: 760, invH: 280 }; // default: receipt strip // default good for phone
+  try{
+    const x = JSON.parse(localStorage.getItem(PREF_KEY)||"null");
+    if(x && Number(x.invW)>0 && Number(x.invH)>0) return { invW:Number(x.invW), invH:Number(x.invH) };
+  }catch(e){}
+  return d;
+}
+function savePrefs(invW, invH){
+  localStorage.setItem(PREF_KEY, JSON.stringify({ invW:Number(invW), invH:Number(invH) }));
+}
+
+/* =========================
+   Pack/unpack invoice item
+   ========================= */
+function packItem(planName, monthLabel, note){
+  return "@wifi_item:" + JSON.stringify({ plan: planName||"", month: monthLabel||"", note: note||"" });
+}
+function unpackItem(desc){
+  const s = String(desc || "");
+  if(s.startsWith("@wifi_item:")){
+    try{ return JSON.parse(s.slice(10)); }catch(e){}
+  }
+  return { plan: s, month: "", note: "" };
+}
+
+/* =========================
+   Seq computations
+   ========================= */
+function computeCustomerSeq(){
+  customerSeqMap = new Map();
+  const sorted = [...customers].sort((a,b)=>{
+    const aa = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bb = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return aa - bb;
+  });
+  sorted.forEach((c, idx)=> customerSeqMap.set(c.id, idx+1));
+}
+function computeInvoiceOffset(){
+  const nums = invoices.map(i=>Number(i.invoice_no)).filter(n=>Number.isFinite(n));
+  if(!nums.length){ invoiceNoOffset = 0; return; }
+  const min = Math.min(...nums);
+  invoiceNoOffset = (min >= 1000) ? (min - 1) : 0;
+}
+function invPublicNo(invoice_no){
+  const n = Number(invoice_no);
+  if(!Number.isFinite(n)) return "—";
+  return String(n - invoiceNoOffset);
+}
+
+/* =========================
+   LOADERS
+   ========================= */
+async function loadSettings(){
+  const { data, error } = await sb.from("settings").select("*").order("created_at",{ascending:true}).limit(1);
+  if(error) throw error;
+  settings = data?.[0] || null;
+}
+async function loadCustomers(){
+  const { data, error } = await sb.from("customers").select("*").order("created_at",{ascending:false});
+  if(error) throw error;
+  customers = data || [];
+  computeCustomerSeq();
+}
+async function loadPlans(){
+  const { data, error } = await sb.from("plans").select("*").order("created_at",{ascending:false});
+  if(error) throw error;
+  plans = data || [];
+}
+async function loadSubs(){
+  const { data, error } = await sb.from("v_subscriptions_status").select("*").order("created_at",{ascending:false});
+  if(error) throw error;
+  subs = data || [];
+}
+async function loadInvoices(){
+  const { data, error } = await sb.from("invoices").select("*").order("created_at",{ascending:false}).limit(500);
+  if(error) throw error;
+  invoices = data || [];
+  computeInvoiceOffset();
+}
+
+async function reloadAll(force=false){
+  try{
+    $("authState").textContent = "تحميل...";
+    await loadSettings();
+    await loadCustomers();
+    await loadPlans();
+    await loadSubs();
+    await loadInvoices();
+    lastLoadedAt = Date.now();
+    $("authState").textContent = "جاهز ✅";
+    renderStats();
+    renderCurrent();
+    startCountdownLoop();
+    updateHeaderH();
+  }catch(e){
+    console.error(e);
+    $("authState").textContent = "مشكلة ⚠️";
+    toast("مشكلة بالتحميل: " + (e?.message||e));
+    renderCurrent();
+    updateHeaderH();
+  }
+}
+
+function renderStats(){
+  $("statCustomers").textContent = String(customers.length);
+  const activeSubs = subs.filter(s=>s.status==="active").length;
+  $("statActiveSubs").textContent = String(activeSubs);
+
+  const monthly = subs
+    .filter(s=>s.status==="active")
+    .reduce((a,s)=>a + Number(s.monthly_price||0), 0);
+
+  $("statMonthly").textContent = money(monthly) + " " + (settings?.currency||"USD");
+
+  const openInv = invoices.filter(i=>i.status!=="paid" && i.status!=="void").length;
+  $("statOpenInv").textContent = String(openInv);
+
+  $("miniStats").textContent = `زباين: ${customers.length} • فعّال: ${activeSubs} • إيصالات: ${invoices.length}`;
+}
+
+/* =========================
+   UI: Tabs
+   ========================= */
+function setTab(t){
+  TAB = t;
+  document.querySelectorAll(".tab").forEach(b=> b.classList.toggle("active", b.dataset.tab===TAB));
+  renderCurrent();
+}
+
+function matchesQuery(obj, q){
+  if(!q) return true;
+  q = q.toLowerCase();
+  const s = JSON.stringify(obj||{}).toLowerCase();
+  return s.includes(q);
+}
+
+/* =========================
+   QUICK ADD (Mobile)
+   ========================= */
+function openFormModal(title, html){
+  $("formModalTitle").textContent = title;
+  $("formModalBody").innerHTML = html;
+  $("formModal").classList.add("show");
+}
+function closeFormModal(){
+  $("formModal").classList.remove("show");
+  $("formModalBody").innerHTML = "";
+}
+function openQuickAdd(){
+  if(TAB==="dashboard" || TAB==="customers"){
+    openFormModal("إضافة زبون", customerFormHTML());
+    return;
+  }
+  if(TAB==="plans"){
+    openFormModal("إضافة باقة", planFormHTML());
+    return;
+  }
+  if(TAB==="subs"){
+    openFormModal("تفعيل اشتراك", subFormHTML());
+    return;
+  }
+  if(TAB==="invoices"){
+    openFormModal("إنشاء إيصال", invoiceFormHTML());
+    return;
+  }
+  if(TAB==="settings"){
+    openFormModal("الإعدادات", settingsFormHTML());
+    return;
+  }
+  if(TAB==="countdown"){
+    openFormModal("ملاحظة", `
+      <div class="badge b-ok">العدّاد</div>
+      <div class="hr"></div>
+      <div class="tiny muted">اضغط على بطاقة الزبون لفتح ملفه.</div>
+      <div class="hr"></div>
+      <button class="btn ok" type="button" onclick="reloadAll(true); closeFormModal();">تحديث الآن</button>
+    `);
+    return;
+  }
+}
+
+/* =========================
+   FORMS
+   ========================= */
+function customerFormHTML(){
+  return `
+    <label>الاسم</label><input id="c_name" placeholder="اسم الزبون">
+    <div class="split">
+      <div><label>المنطقة</label><input id="c_area" placeholder="طرابلس / بيروت ..."></div>
+      <div><label>الهاتف</label><input id="c_phone" placeholder="70xxxxxx"></div>
+    </div>
+    <label>العنوان</label><input id="c_address" placeholder="العنوان التفصيلي">
+    <div class="split">
+      <div><label>اليوزر</label><input id="c_user" placeholder="username"></div>
+      <div><label>ملاحظات</label><input id="c_notes" placeholder="اختياري"></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" onclick="addCustomer()">حفظ زبون</button>
+    </div>
+    <div class="hr"></div>
+    <div class="tiny">رقم الزبون التسلسلي يظهر تلقائياً (1,2,3...)</div>
+  `;
+}
+
+function planFormHTML(){
+  return `
+    <label>اسم الباقة</label><input id="p_name" placeholder="مثال: GB 10 أو 20Mbps">
+    <div class="split">
+      <div><label>السرعة/النوع</label><input id="p_speed" placeholder="10Mbps / GB 10 ..."></div>
+      <div><label>السعر الشهري</label><input id="p_price" type="number" step="0.01" placeholder="20"></div>
+    </div>
+    <label>ملاحظات</label><input id="p_notes" placeholder="اختياري">
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" onclick="addPlan()">حفظ باقة</button>
+    </div>
+  `;
+}
+
+function subFormHTML(){
+  const custOpts = customers.map(c=>{
+    const no = customerSeqMap.get(c.id) || "";
+    return `<option value="${c.id}">#${no} — ${esc(c.full_name)} — ${esc(c.phone||"")}</option>`;
+  }).join("");
+
+  const planOpts = plans
+    .filter(p=>p.is_active !== false)
+    .map(p=>`<option value="${p.id}" data-price="${p.monthly_price}">${esc(p.name)} — ${money(p.monthly_price)} ${(settings?.currency||"USD")}</option>`)
+    .join("");
+
+  return `
+    <label>الزبون</label>
+    <select id="s_customer">${custOpts || `<option value="">لا يوجد زبائن</option>`}</select>
+
+    <label>الباقة</label>
+    <select id="s_plan" onchange="syncPlanPrice()">${planOpts || `<option value="">لا يوجد باقات</option>`}</select>
+
+    <div class="split">
+      <div><label>السعر الشهري (قابل للتعديل)</label><input id="s_price" type="number" step="0.01" placeholder="20"></div>
+      <div><label>مدة (أيام)</label><input id="s_days" type="number" value="30"></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" onclick="activateSub()">تفعيل اشتراك</button>
+    </div>
+  `;
+}
+
+function invoiceFormHTML(){
+  const custOpts = customers.map(c=>{
+    const no = customerSeqMap.get(c.id) || "";
+    return `<option value="${c.id}">#${no} — ${esc(c.full_name)} — ${esc(c.phone||"")}</option>`;
+  }).join("");
+
+  const planOpts = plans
+    .filter(p=>p.is_active !== false)
+    .map(p=>`<option value="${esc(p.name)}" data-price="${p.monthly_price||0}">${esc(p.name)} (${money(p.monthly_price||0)} ${(settings?.currency||"USD")})</option>`)
+    .join("");
+
+  const monthOpts = [
+    "الشهر 1 (الأول)","الشهر 2 (الثاني)","الشهر 3 (الثالث)","الشهر 4 (الرابع)",
+    "الشهر 5 (الخامس)","الشهر 6 (السادس)","الشهر 7 (السابع)","الشهر 8 (الثامن)",
+    "الشهر 9 (التاسع)","الشهر 10 (العاشر)","الشهر 11 (الحادي عشر)","الشهر 12 (الثاني عشر)"
+  ].map(m=>`<option value="${m}">${m}</option>`).join("");
+
+  const today = new Date().toISOString().slice(0,10);
+
+  return `
+    <label>الزبون</label>
+    <select id="i_customer">${custOpts || `<option value="">لا يوجد زبائن</option>`}</select>
+
+    <div class="split">
+      <div>
+        <label>نوع الباقة</label>
+        <select id="i_plan" onchange="syncInvoiceAmount()">
+          <option value="">اختر باقة...</option>
+          ${planOpts}
+        </select>
+        <div class="tiny">أو اكتب يدوي:</div>
+        <input id="i_plan_manual" placeholder="مثال: GB 10">
+      </div>
+      <div>
+        <label>عن أي شهر</label>
+        <select id="i_month">${monthOpts}</select>
+        <div class="tiny">أو اكتب يدوي:</div>
+        <input id="i_month_manual" placeholder="مثال: شهر 2">
+      </div>
+    </div>
+
+    <div class="split">
+      <div><label>سعر الباقة</label><input id="i_amount" type="number" step="0.01" placeholder="20" oninput="syncPaidFromAmount()"></div>
+      <div><label>المدفوع</label><input id="i_paid" type="number" step="0.01" placeholder="20"></div>
+      <div><label>تاريخ الإصدار</label><input id="i_date" type="date" value="${today}"></div>
+    </div>
+    <div class="tiny muted">إذا بدك إيصال غير مدفوع خلي "المدفوع" = 0.</div>
+
+    <label>ملاحظة (اختياري)</label>
+    <input id="i_note" placeholder="مثال: دفعة متأخرة / خصم ...">
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" onclick="createInvoice()">إنشاء إيصال</button>
+    </div>
+
+    <div class="hr"></div>
+    <div class="tiny muted">
+      ✅ طباعة A4: كل ورقة فيها 5 إيصالات — وكل إيصال نسختين (شركة/زبون).
+    </div>
+  `;
+}
+
+function settingsFormHTML(){
+  const prefs = getPrefs();
+  return `
+    <div class="badge b-ok">بيانات الشركة (تُحفظ على السيرفر)</div>
+
+    <label>اسم الشركة</label><input id="set_name" value="${esc(settings?.company_name||"WiFi Company")}">
+    <div class="split">
+      <div><label>هاتف الشركة</label><input id="set_phone" value="${esc(settings?.company_phone||"")}"></div>
+      <div><label>العملة</label><input id="set_cur" value="${esc(settings?.currency||"USD")}"></div>
+    </div>
+    <label>عنوان الشركة</label><input id="set_addr" value="${esc(settings?.company_address||"")}">
+
+    <div class="split">
+      <div>
+        <label>رابط اللوغو (URL) أو DataURL</label>
+        <input id="set_logo" value="${esc(settings?.company_logo_url||"")}" placeholder="https://.../logo.png">
+        <div class="tiny muted">يمكن تخزين اللوغو كـ Data URL من زر الرفع.</div>
+      </div>
+      <div>
+        <label>رفع لوغو من الهاتف</label>
+        <input id="set_logo_file" type="file" accept="image/*" onchange="handleLogoUpload(this)">
+        <div class="tiny muted">سيتم تحويله تلقائياً ووضعه بالحقل.</div>
+      </div>
+    </div>
+
+    <div class="split">
+      <div>
+        <label>Prefix الإيصال</label>
+        <input id="set_pref" value="${esc(settings?.invoice_prefix||"REC")}">
+      </div>
+      <div><label class="muted">مثال</label><input disabled value="${esc((settings?.invoice_prefix||'REC'))}-1"></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" type="button" onclick="saveSettings()">حفظ الإعدادات</button>
+    </div>
+
+    <div class="hr"></div>
+    <div class="badge">مقاس الإيصال للشاشة (على هذا الجهاز فقط)</div>
+
+    <div class="split">
+      <div><label>عرض الإيصال (px)</label><input id="pref_w" type="number" value="${prefs.invW}"></div>
+      <div><label>طول الإيصال (px)</label><input id="pref_h" type="number" value="${prefs.invH}"></div>
+    </div>
+    <div class="tiny muted">هدفنا: الإيصال يظهر كامل “شاشة وحدة” بدون تمرير.</div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ok" type="button" onclick="saveScreenPrefs()">حفظ المقاس</button>
+      <button class="btn" type="button" onclick="previewInvoiceSample()">معاينة</button>
+    </div>
+  `;
+}
+
+function settingsPreviewHTML(){
+  const name = settings?.company_name || "WiFi Company";
+  const phone = settings?.company_phone || "";
+  const addr = settings?.company_address || "";
+  const logo = settings?.company_logo_url || "";
+  const prefs = getPrefs();
+  return `
+    <div class="badge b-ok">المعاينة</div>
+    <div class="hr"></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      ${logo?`<img src="${esc(logo)}" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--line);border-radius:14px;padding:6px">`:""}
+      <div>
+        <div style="font-size:18px"><b>${esc(name)}</b></div>
+        <div class="tiny muted">${esc(addr)}</div>
+        <div class="tiny muted">${esc(phone)}</div>
+      </div>
+    </div>
+    <div class="hr"></div>
+    <div class="tiny muted">مقاس الشاشة الحالي: <b>${prefs.invW}×${prefs.invH}</b> px</div>
+  `;
+}
+
+/* =========================
+   PAGES
+   ========================= */
+function dashboardHTML(q){
+  const exp = subs
+    .filter(s=>matchesQuery(s,q))
+    .filter(s=>s.status==="active")
+    .sort((a,b)=>(a.days_left??999)-(b.days_left??999))
+    .slice(0,120);
+
+  const rows = exp.map(s=>{
+    const cNo = customerSeqMap.get(s.customer_id) || "";
+    return `
+      <tr>
+        <td>
+          <b>#${cNo} — ${esc(s.full_name || "—")}</b>
+          <div class="tiny muted">${esc(s.phone||"")} • ${esc(s.area||"")}</div>
+          <div class="tiny">باقة: <b>${esc(s.plan_name||"—")}</b> • شهري: <b>${money(s.monthly_price)} ${(settings?.currency||"USD")}</b></div>
+        </td>
+        <td>${badgeDays(s.days_left)}</td>
+        <td class="no-print">
+          <button class="btn" type="button" onclick="openCustomerModal('${s.customer_id}')">ملف الزبون</button>
+          <button class="btn ok" type="button" onclick="renewSub('${s.id}')">تجديد 30 يوم</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="pill2 b-warn">تنبيه: مبني على end_date ويُحدّث تلقائياً</div>
+    <div class="hr"></div>
+    <table>
+      <thead><tr><th>الزبون</th><th>المتبقي</th><th class="no-print">إجراء</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="3" class="muted">لا يوجد نتائج.</td></tr>`}</tbody>
+    </table>
+  `;
+}
+
+function customersHTML(q){
+  const rows = customers
+    .filter(c=>matchesQuery(c,q))
+    .map(c=>{
+      const no = customerSeqMap.get(c.id) || "";
+      return `
+        <tr>
+          <td>
+            <b>#${no} — ${esc(c.full_name)}</b>
+            <div class="tiny muted">${esc(c.phone||"")} • ${esc(c.area||"")}</div>
+            <div class="tiny muted">${c.username ? ("يوزر: "+esc(c.username)) : ""}</div>
+          </td>
+          <td class="no-print">
+            <button class="btn" type="button" onclick="openCustomerModal('${c.id}')">ملف</button>
+            <button class="btn danger" type="button" onclick="deleteCustomer('${c.id}')">حذف</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  return `
+    <table>
+      <thead><tr><th>الزبون</th><th class="no-print">إجراء</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="2" class="muted">لا يوجد زبائن.</td></tr>`}</tbody>
+    </table>
+  `;
+}
+
+function plansHTML(q){
+  const rows = plans
+    .filter(p=>matchesQuery(p,q))
+    .map(p=>`
+      <tr>
+        <td><b>${esc(p.name)}</b><div class="tiny muted">${esc(p.speed||"")}</div></td>
+        <td><b>${money(p.monthly_price||0)} ${(settings?.currency||"USD")}</b></td>
+        <td class="no-print">
+          <button class="btn danger" type="button" onclick="deletePlan('${p.id}')">حذف</button>
+        </td>
+      </tr>
+    `).join("");
+
+  return `
+    <table>
+      <thead><tr><th>الباقة</th><th>السعر</th><th class="no-print">إجراء</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="3" class="muted">لا يوجد باقات.</td></tr>`}</tbody>
+    </table>
+  `;
+}
+
+function subsHTML(q){
+  const rows = subs
+    .filter(s=>matchesQuery(s,q))
+    .map(s=>{
+      const cNo = customerSeqMap.get(s.customer_id) || "";
+      return `
+        <tr>
+          <td>
+            <b>#${cNo} — ${esc(s.full_name||"—")}</b>
+            <div class="tiny muted">${esc(s.phone||"")} • ${esc(s.area||"")}</div>
+            <div class="tiny">باقة: <b>${esc(s.plan_name||"—")}</b> • شهري: <b>${money(s.monthly_price)} ${(settings?.currency||"USD")}</b></div>
+            <div class="tiny muted">من ${esc(s.start_date||"")} إلى ${esc(s.end_date||"")} • حالة: ${esc(s.status||"")}</div>
+          </td>
+          <td>${badgeDays(s.days_left)}</td>
+          <td class="no-print">
+            <button class="btn" type="button" onclick="openCustomerModal('${s.customer_id}')">ملف</button>
+            <button class="btn ok" type="button" onclick="renewSub('${s.id}')">تجديد 30 يوم</button>
+            <button class="btn danger" type="button" onclick="endSub('${s.id}')">إنهاء</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+  return `
+    <table>
+      <thead><tr><th>الاشتراك</th><th>المتبقي</th><th class="no-print">إجراء</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="3" class="muted">لا يوجد اشتراكات.</td></tr>`}</tbody>
+    </table>
+  `;
+}
+
+function invoicesHTML(q){
+  const cur = settings?.currency || "USD";
+  const filtered = invoices.filter(i=>matchesQuery(i,q));
+
+  const rows = filtered.map(i=>{
+    const c = customers.find(x=>x.id===i.customer_id);
+    const cNo = c ? (customerSeqMap.get(c.id)||"") : "";
+    const name = c?.full_name || "—";
+    const invCode = `${settings?.invoice_prefix||"REC"}-${invPublicNo(i.invoice_no)}`;
+    const st = i.status || "unpaid";
+    const total = Number(i.total ?? i.subtotal ?? 0);
+    const paid = Number(i.paid ?? 0);
+    const balance = Number(i.balance ?? (total - paid));
+    const checked = bulkSelection.has(i.id) ? "checked" : "";
+
+    return `
+      <tr>
+        <td class="no-print" style="width:44px">
+          <input type="checkbox" ${checked} onchange="toggleBulk('${i.id}', this.checked)">
+        </td>
+        <td>
+          <b>${esc(invCode)}</b>
+          <div class="tiny muted">${esc(i.issue_date||"")} • #${cNo} — ${esc(name)}</div>
+          <div class="tiny">
+            الإجمالي: <b>${money(total)} ${esc(i.currency||cur)}</b>
+            • مدفوع: <b>${money(paid)}</b>
+            • متبقّي: <b>${money(balance)}</b>
+          </div>
+        </td>
+        <td>${statusBadge(st)}</td>
+        <td class="no-print" style="white-space:nowrap">
+          <button class="btn" type="button" onclick="openInvoiceFromList(event,'${i.id}', this)">عرض/طباعة</button>
+          <button class="btn ok" type="button" onclick="addPaymentPrompt('${i.id}')">إضافة دفعة</button>
+          <button class="btn danger" type="button" onclick="deleteInvoice('${i.id}')">حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <div class="no-print" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <button class="btn primary" type="button" onclick="bulkPrint('a4')">🖨️ طباعة جماعية A4 (5/ورقة)</button>
+      <button class="btn primary" type="button" onclick="bulkPrint('pos')">🧾 طباعة جماعية POS</button>
+      <button class="btn" type="button" onclick="selectFilteredInvoices(30)">✓ تحديد أول 30</button>
+      <button class="btn" type="button" onclick="clearBulk()">مسح التحديد</button>
+      <span class="tiny muted">محدد: <b>${bulkSelection.size}</b> • الأفضل الطباعة على كمبيوتر.</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="no-print">✓</th>
+          <th>الإيصال</th>
+          <th>الحالة</th>
+          <th class="no-print">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>${rows || `<tr><td colspan="4" class="muted">لا يوجد إيصالات.</td></tr>`}</tbody>
+    </table>
+  `;
+}
+
+function countdownHTML(q){
+  const list = subs
+    .filter(s=>matchesQuery(s,q))
+    .filter(s=>s.status==="active")
+    .sort((a,b)=>{
+      const da = new Date(a.end_date||0).getTime();
+      const db = new Date(b.end_date||0).getTime();
+      return da - db;
+    });
+
+  const cards = list.map(s=>{
+    const cNo = customerSeqMap.get(s.customer_id) || "";
+    const end = s.end_date ? new Date(s.end_date + "T23:59:59").getTime() : 0;
+
+    const plan = s.plan_name || "—";
+    const price = money(s.monthly_price||0);
+    const cur = settings?.currency || "USD";
+
+    const bg = brightGradient(s.customer_id || s.id);
+
+    return `
+      <div class="ccard" onclick="openCustomerModal('${s.customer_id}')" data-end="${end}" data-sub="${esc(s.id)}"
+        style="background:${bg}">
+        <div class="top">
+          <div>
+            <div class="name">#${cNo} — ${esc(s.full_name||"—")}</div>
+            <div class="meta tiny muted">${esc(s.phone||"")} • ${esc(s.area||"")}</div>
+            <div class="meta tiny">باقة: <b>${esc(plan)}</b> • شهري: <b>${price} ${cur}</b></div>
+          </div>
+          <div>${badgeDays(s.days_left)}</div>
+        </div>
+
+        <div class="countdown" id="cd_${esc(s.id)}">
+          <div class="cd"><div class="n">—</div><div class="t">أيام</div></div>
+          <div class="cd"><div class="n">—</div><div class="t">ساعات</div></div>
+          <div class="cd"><div class="n">—</div><div class="t">دقائق</div></div>
+          <div class="cd"><div class="n">—</div><div class="t">ثواني</div></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="tiny muted">ينتهي: ${esc(s.end_date||"—")} • اضغط لعرض بطاقة الزبون</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="pill2 b-ok">بطاقات واضحة (أيام • ساعات • دقائق • ثواني)</div>
+    <div class="hr"></div>
+    <div class="cards">${cards || `<div class="muted">لا يوجد اشتراكات فعّالة.</div>`}</div>
+  `;
+}
+
+/* bright gradients */
+function brightGradient(seed){
+  const palettes = [
+    ["#dbeafe","#93c5fd"], // blue
+    ["#dcfce7","#86efac"], // green
+    ["#ffedd5","#fdba74"], // orange
+    ["#ede9fe","#c4b5fd"], // purple
+    ["#cffafe","#67e8f9"], // cyan
+    ["#ffe4e6","#fda4af"], // pink
+  ];
+  let h=0; const s=String(seed||"x");
+  for(let i=0;i<s.length;i++) h=(h*31 + s.charCodeAt(i))>>>0;
+  const p = palettes[h % palettes.length];
+  return `linear-gradient(135deg, ${p[0]}, ${p[1]})`;
+}
+
+/* =========================
+   RENDER CURRENT
+   ========================= */
+function renderCurrent(){
+  const q = $("q").value.trim();
+
+  if(TAB==="dashboard"){
+    $("leftTitle").textContent = "إضافة زبون";
+    $("leftHint").textContent = "أضف زبون جديد بسرعة";
+    $("mainTitle").textContent = "تنبيهات انتهاء الاشتراك";
+    $("leftBody").innerHTML = customerFormHTML();
+    $("mainBody").innerHTML = dashboardHTML(q);
+    return;
+  }
+  if(TAB==="customers"){
+    $("leftTitle").textContent = "إضافة زبون";
+    $("leftHint").textContent = "رقم تسلسلي تلقائي";
+    $("mainTitle").textContent = "قائمة الزبائن";
+    $("leftBody").innerHTML = customerFormHTML();
+    $("mainBody").innerHTML = customersHTML(q);
+    return;
+  }
+  if(TAB==="plans"){
+    $("leftTitle").textContent = "إضافة باقة";
+    $("leftHint").textContent = "حدد السعر والاسم";
+    $("mainTitle").textContent = "قائمة الباقات";
+    $("leftBody").innerHTML = planFormHTML();
+    $("mainBody").innerHTML = plansHTML(q);
+    return;
+  }
+  if(TAB==="subs"){
+    $("leftTitle").textContent = "تفعيل اشتراك";
+    $("leftHint").textContent = "بدء اشتراك وتحديد المدة";
+    $("mainTitle").textContent = "الاشتراكات";
+    $("leftBody").innerHTML = subFormHTML();
+    $("mainBody").innerHTML = subsHTML(q);
+    return;
+  }
+  if(TAB==="countdown"){
+    $("leftTitle").textContent = "ملاحظة";
+    $("leftHint").textContent = "اضغط البطاقة لفتح ملف الزبون";
+    $("mainTitle").textContent = "العدّاد";
+    $("leftBody").innerHTML = `
+      <div class="badge b-ok">العدّاد</div>
+      <div class="hr"></div>
+      <div class="tiny muted">
+        بطاقات عصرية وواضحة<br>(أيام • ساعات • دقائق • ثواني)
+      </div>
+      <div class="hr"></div>
+      <button class="btn ok" type="button" onclick="reloadAll(true)">تحديث الآن</button>
+    `;
+    $("mainBody").innerHTML = countdownHTML(q);
+    return;
+  }
+  if(TAB==="invoices"){
+    $("leftTitle").textContent = "إنشاء إيصال";
+    $("leftHint").textContent = "باقة + شهر + مبلغ + ملاحظة";
+    $("mainTitle").textContent = "الإيصالات";
+    $("leftBody").innerHTML = invoiceFormHTML();
+    $("mainBody").innerHTML = invoicesHTML(q);
+    return;
+  }
+  if(TAB==="settings"){
+    $("leftTitle").textContent = "الإعدادات";
+    $("leftHint").textContent = "شركة + لوغو + مقاس الإيصال";
+    $("mainTitle").textContent = "المعاينة";
+    $("leftBody").innerHTML = settingsFormHTML();
+    $("mainBody").innerHTML = settingsPreviewHTML();
+    return;
+  }
+}
+
+/* =========================
+   ACTIONS
+   ========================= */
+async function addCustomer(){
+  const payload = {
+    full_name: $("c_name")?.value?.trim() || "",
+    area: $("c_area")?.value?.trim() || "",
+    address: $("c_address")?.value?.trim() || "",
+    phone: $("c_phone")?.value?.trim() || "",
+    username: $("c_user")?.value?.trim() || "",
+    notes: $("c_notes")?.value?.trim() || ""
+  };
+  if(!payload.full_name) return toast("اكتب اسم الزبون");
+  const { error } = await sb.from("customers").insert(payload);
+  if(error) return toast("خطأ حفظ زبون: " + error.message);
+  toast("تم حفظ الزبون ✅");
+  closeFormModal();
+  await reloadAll(true);
+}
+
+async function deleteCustomer(id){
+  if(!id) return;
+  if(!confirm("حذف الزبون؟ (قد يُحذف معه اشتراكات/إيصالات حسب إعدادات قاعدة البيانات)")) return;
+  const { error } = await sb.from("customers").delete().eq("id", id);
+  if(error) return toast("خطأ حذف: " + error.message);
+  closeCustomerModal();
+  await reloadAll(true);
+}
+
+async function addPlan(){
+  const payload = {
+    name: $("p_name")?.value?.trim() || "",
+    speed: $("p_speed")?.value?.trim() || "",
+    monthly_price: Number($("p_price")?.value||0),
+    notes: $("p_notes")?.value?.trim() || ""
+  };
+  if(!payload.name) return toast("اكتب اسم الباقة");
+  const { error } = await sb.from("plans").insert(payload);
+  if(error) return toast("خطأ حفظ باقة: " + error.message);
+  toast("تم حفظ الباقة ✅");
+  closeFormModal();
+  await reloadAll(true);
+}
+
+async function deletePlan(id){
+  if(!confirm("حذف الباقة؟")) return;
+  const { error } = await sb.from("plans").delete().eq("id", id);
+  if(error) return toast("خطأ حذف: " + error.message);
+  await reloadAll(true);
+}
+
+function syncPlanPrice(){
+  const sel = $("s_plan");
+  const opt = sel?.selectedOptions?.[0];
+  const price = opt?.getAttribute("data-price");
+  if(price!==null && price!==undefined && $("s_price")) $("s_price").value = price;
+}
+
+async function activateSub(){
+  const customer_id = $("s_customer")?.value || "";
+  const plan_id = $("s_plan")?.value || null;
+  const monthly_price = Number($("s_price")?.value||0);
+  const days = Number($("s_days")?.value||30);
+
+  if(!customer_id) return toast("اختر الزبون");
+  if(!monthly_price) return toast("حدد السعر الشهري");
+
+  const start = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + days);
+
+  const payload = {
+    customer_id,
+    plan_id,
+    monthly_price,
+    start_date: start.toISOString().slice(0,10),
+    end_date: end.toISOString().slice(0,10),
+    status: "active",
+    auto_renew: true
+  };
+
+  const { error } = await sb.from("subscriptions").insert(payload);
+  if(error) return toast("خطأ تفعيل اشتراك: " + error.message);
+  toast("تم تفعيل الاشتراك ✅");
+  closeFormModal();
+  await reloadAll(true);
+}
+
+async function renewSub(subId){
+  const s = subs.find(x=>x.id===subId);
+  if(!s) return;
+  const end = new Date(s.end_date);
+  end.setDate(end.getDate() + 30);
+  const { error } = await sb.from("subscriptions").update({ end_date: end.toISOString().slice(0,10), status:"active" }).eq("id", subId);
+  if(error) return toast("خطأ تجديد: " + error.message);
+  await reloadAll(true);
+}
+
+async function endSub(subId){
+  if(!confirm("إنهاء الاشتراك؟")) return;
+  const { error } = await sb.from("subscriptions").update({ status:"ended" }).eq("id", subId);
+  if(error) return toast("خطأ إنهاء: " + error.message);
+  await reloadAll(true);
+}
+
+/* =========================
+   RECEIPTS (Invoices table)
+   ========================= */
+function syncInvoiceAmount(){
+  const sel = $("i_plan");
+  const opt = sel?.selectedOptions?.[0];
+  const price = opt?.getAttribute("data-price");
+  if(price!==null && price!==undefined){
+    if($("i_amount") && !$("i_amount").value) $("i_amount").value = price;
+    if($("i_paid") && !$("i_paid").value) $("i_paid").value = $("i_amount")?.value || price;
+  }
+}
+
+function syncPaidFromAmount(){
+  // إذا المستخدم ما عدّل "المدفوع" يدوي، خلي المدفوع = سعر الباقة
+  const a = $("i_amount")?.value;
+  const p = $("i_paid");
+  if(!p) return;
+  if(!p.dataset.touched){
+    p.value = a;
+  }
+}
+
+document.addEventListener("input", (e)=>{
+  if(e?.target?.id === "i_paid"){
+    e.target.dataset.touched = "1";
+  }
+});
+
+async function getNextInvoiceNo(){
+  const { data, error } = await sb
+    .from("invoices")
+    .select("invoice_no")
+    .order("invoice_no", { ascending:false })
+    .limit(1);
+  if(error) throw error;
+  const max = Number(data?.[0]?.invoice_no || 0);
+  return max + 1; // لو أول مرة => 1
+}
+
+async function createInvoice(){
+  const customer_id = $("i_customer")?.value || "";
+  const issue_date = $("i_date")?.value || "";
+  const amount = Number($("i_amount")?.value||0);
+  const paid_now = Number($("i_paid")?.value||0);
+  const note = $("i_note")?.value?.trim() || "";
+
+  const planSel = $("i_plan")?.value?.trim() || "";
+  const planManual = $("i_plan_manual")?.value?.trim() || "";
+  const planName = planManual || planSel;
+
+  const monthSel = $("i_month")?.value?.trim() || "";
+  const monthManual = $("i_month_manual")?.value?.trim() || "";
+  const monthLabel = monthManual || monthSel;
+
+  if(!customer_id) return toast("اختر الزبون");
+  if(!planName) return toast("اختر/اكتب نوع الباقة");
+  if(!monthLabel) return toast("اختر/اكتب عن أي شهر");
+  if(!amount || amount<=0) return toast("اكتب مبلغ صحيح");
+  if(paid_now < 0) return toast("المدفوع غير صحيح");
+
+  const currency = settings?.currency || "USD";
+  const invoice_no = await getNextInvoiceNo();
+
+  const { data: inv, error: e1 } = await sb
+    .from("invoices")
+    .insert({
+      customer_id,
+      issue_date,
+      due_date: issue_date,
+      notes: "",
+      currency,
+      discount: 0,
+      invoice_no
+    })
+    .select("*")
+    .single();
+  if(e1) return toast("خطأ إنشاء إيصال: " + e1.message);
+
+  const description = packItem(planName, monthLabel, note);
+
+  const { error: e2 } = await sb.from("invoice_items").insert({
+    invoice_id: inv.id,
+    description,
+    qty: 1,
+    unit_price: amount,
+    sort_order: 1
+  });
+  if(e2) return toast("خطأ إضافة بند: " + e2.message);
+
+  // ✅ سجل المدفوع (اختياري)
+  if(paid_now > 0){
+    const { error: ep } = await sb.from("payments").insert({
+      invoice_id: inv.id,
+      amount: paid_now,
+      method: "cash",
+      note: note || "",
+      pay_date: issue_date
+    });
+    if(ep) return toast("خطأ تسجيل الدفع: " + ep.message);
+  }
+
+  await recalcInvoice(inv.id);
+  toast("تم إنشاء الإيصال ✅");
+  closeFormModal();
+  await reloadAll(true);
+  await openInvoice(inv.id);
+}
+
+async function recalcInvoice(invoiceId){
+  const { data: items, error: e1 } = await sb.from("invoice_items").select("*").eq("invoice_id", invoiceId);
+  if(e1) return;
+
+  const { data: pays, error: e2 } = await sb.from("payments").select("*").eq("invoice_id", invoiceId);
+  if(e2) return;
+
+  const subtotal = (items||[]).reduce((a,it)=>{
+    const line = (it.line_total!=null) ? Number(it.line_total||0) : (Number(it.qty||1)*Number(it.unit_price||0));
+    return a + line;
+  }, 0);
+
+  const paid = (pays||[]).reduce((a,p)=>a + Number(p.amount||0), 0);
+
+  const { data: inv, error: e3 } = await sb.from("invoices").select("*").eq("id", invoiceId).single();
+  if(e3) return;
+
+  const discount = Number(inv.discount||0);
+  const total = subtotal - discount;
+  const balance = total - paid;
+
+  let status = inv.status || "unpaid";
+  if(status !== "void"){
+    if(total<=0) status = "paid";
+    else if(balance <= 0) status = "paid";
+    else if(paid > 0) status = "partial";
+    else status = "unpaid";
+  }
+
+  await sb.from("invoices").update({ subtotal, discount, total, paid, balance, status }).eq("id", invoiceId);
+}
+
+async function addPaymentPrompt(invoiceId){
+  const amount = prompt("أدخل مبلغ الدفعة:");
+  if(amount===null) return;
+  const a = Number(amount);
+  if(!a || a<=0) return toast("مبلغ غير صحيح");
+
+  const method = prompt("طريقة الدفع؟ (cash/transfer/card/other)", "cash") || "cash";
+  const note = prompt("ملاحظة (اختياري):", "") || "";
+
+  const { error } = await sb.from("payments").insert({ invoice_id: invoiceId, amount: a, method, note });
+  if(error) return toast("خطأ إضافة دفعة: " + error.message);
+
+  await recalcInvoice(invoiceId);
+  toast("تمت إضافة الدفعة ✅");
+  await reloadAll(true);
+}
+
+async function deleteInvoice(id){
+  if(!id) return;
+  if(!confirm("حذف الإيصال نهائياً؟ سيتم حذف البنود والدفعات التابعة له.")) return;
+
+  await sb.from("payments").delete().eq("invoice_id", id);
+  await sb.from("invoice_items").delete().eq("invoice_id", id);
+
+  const { error } = await sb.from("invoices").delete().eq("id", id);
+  if(error) return toast("خطأ حذف الإيصال: " + error.message);
+
+  if(currentInvoiceId === id) closeInvoicePage();
+  toast("تم حذف الإيصال ✅");
+  bulkSelection.delete(id);
+  await reloadAll(true);
+}
+
+function openInvoicePage(){
+  $("invPage").classList.add("show");
+  requestAnimationFrame(()=> fitInvoiceToViewport());
+  setTimeout(()=> fitInvoiceToViewport(), 250);
+}
+function closeInvoicePage(){
+  $("invPage").classList.remove("show");
+  currentInvoiceId = null;
+  renderCurrent();
+}
+
+function openInvoiceFromList(ev, id, btn){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  if(btn){
+    if(btn.dataset.loading==="1") return;
+    btn.dataset.loading="1";
+    const old = btn.textContent;
+    btn.textContent = "تحميل...";
+    openInvoice(id).finally(()=>{
+      btn.dataset.loading="0";
+      btn.textContent = old;
+    });
+  }else{
+    openInvoice(id);
+  }
+}
+
+function fitInvoiceToViewport(){
+  const page = $("invPage");
+  if(!page || !page.classList.contains("show")) return;
+  const stage = $("invoiceStage");
+  if(!stage) return;
+
+  stage.style.transform = "scale(1)";
+
+  const bar = page.querySelector(".invbar");
+  const barH = bar ? bar.offsetHeight : 0;
+
+  const pad = 16;
+  const availW = window.innerWidth - pad;
+  const availH = window.innerHeight - barH - pad;
+
+  const fullW = stage.offsetWidth;
+  const fullH = stage.offsetHeight;
+  if(!fullW || !fullH) return;
+
+  let scale = Math.min(availW / fullW, availH / fullH);
+  scale = Math.max(0.35, Math.min(scale, 2.2));
+  stage.style.transform = `scale(${scale})`;
+}
+
+/* Print */
+function applyPrintCSS(mode){
+  const st = $("dynamicPrintStyle");
+
+  if(mode==="pos"){
+    st.textContent = `
+      @page { size: 80mm auto; margin: 4mm; }
+      body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .invpaper{ width: 80mm !important; }
+      .pos-sep{ border-top:1px dashed rgba(15,23,42,.35); margin:6mm 0; }
+    `;
+    return;
+  }
+
+  /* ✅ A4: 5 receipts per page + 2 copies per receipt */
+  st.textContent = `
+    @page { size: A4 portrait; margin: 8mm; }
+    body{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sheet{ width: 190mm; margin: 0 auto; }
+    .receipt{ height: 54mm; border:1px solid rgba(15,23,42,.35); border-radius:8px; padding:3mm; margin-bottom:2mm; page-break-inside:avoid; overflow:hidden; }
+    .receipt.empty{ border-color: transparent; }
+    .receiptRow{ display:flex; height:100%; gap:0; }
+    .copy{ flex:1; padding:0 2mm; font-size:10.5px; line-height:1.25; display:flex; flex-direction:column; }
+    .copy + .copy{ border-inline-start:1px dashed rgba(15,23,42,.35); }
+    .copyHd{ display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
+    .copyTitle{ font-weight:900; font-size:12px; }
+    .copyTag{ font-size:10px; border:1px solid rgba(15,23,42,.25); border-radius:999px; padding:1px 6px; white-space:nowrap; }
+    .rline{ height:1px; background:rgba(15,23,42,.18); margin:2mm 0; }
+    .rmuted{ color:#475569; font-size:10px; }
+    .ramount{ font-weight:900; font-size:12px; }
+    .sig{ margin-top:auto; display:flex; justify-content:space-between; gap:6px; font-size:10px; }
+    .sig span{ border-top:1px solid rgba(15,23,42,.25); padding-top:2mm; width:46%; text-align:center; }
+    .pageBreak{ page-break-after: always; height:0; }
+  `;
+}
+
+function setPrintModeAndPrint(mode){
+  printMode = mode;
+  applyPrintCSS(mode);
+
+  if(mode==="a4"){
+    // ✅ اطبع الإيصال الحالي ضمن A4 5-up (حتى لو إيصال واحد)
+    printCurrentReceiptA4();
+    return;
+  }
+
+  // POS: اطبع شاشة الإيصال (نسختين فوق/تحت)
+  if(mode==="pos" && lastReceiptData && $("invoiceView")){
+    $("invoiceView").innerHTML = buildReceiptPaperHTML(
+      lastReceiptData.inv,
+      lastReceiptData.items,
+      lastReceiptData.pays,
+      { forPrint:false, mode:"pos" }
+    );
+    fitInvoiceToViewport();
+  }
+
+  requestAnimationFrame(()=>window.print());
+}
+
+/* ====== A4 helper (single receipt) ====== */
+async function printCurrentReceiptA4(){
+  if(!currentInvoiceId) return toast("افتح إيصال أولاً.");
+  const id = currentInvoiceId;
+
+  const { data: inv, error: e1 } = await sb.from("invoices").select("*").eq("id", id).single();
+  if(e1) return toast("خطأ قراءة الإيصال: " + e1.message);
+
+  const { data: items, error: e2 } = await sb.from("invoice_items").select("*").eq("invoice_id", id).order("sort_order",{ascending:true});
+  if(e2) return toast("خطأ بنود: " + e2.message);
+
+  const { data: pays, error: e3 } = await sb.from("payments").select("*").eq("invoice_id", id).order("created_at",{ascending:true});
+  if(e3) return toast("خطأ دفعات: " + e3.message);
+
+  // build one receipt slip and fill up to 5 spots
+  const slips = [buildReceiptSlipHTML(inv, items||[], pays||[])];
+  while(slips.length < 5) slips.push(`<div class="receipt empty"></div>`);
+
+  document.body.classList.add("bulk-printing");
+  $("printArea").innerHTML = `<div class="sheet">${slips.join("")}</div>`;
+
+  setTimeout(()=>window.print(), 50);
+
+  window.onafterprint = ()=>{
+    document.body.classList.remove("bulk-printing");
+    $("printArea").innerHTML = "";
+    window.onafterprint = null;
+  };
+}
+
+/* ====== Bulk selection helpers ====== */
+function toggleBulk(id, checked){
+  if(checked) bulkSelection.add(id); else bulkSelection.delete(id);
+}
+function clearBulk(){
+  bulkSelection.clear();
+  renderCurrent();
+}
+function selectFilteredInvoices(limit=30){
+  const q = $("q").value.trim();
+  const filtered = invoices.filter(i=>matchesQuery(i,q)).slice(0, limit);
+  filtered.forEach(i=> bulkSelection.add(i.id));
+  renderCurrent();
+}
+
+async function bulkPrint(mode){
+  const ids = [...bulkSelection];
+  if(!ids.length) return toast("حدد إيصالات أولاً (✓)");
+  if(ids.length > 60){
+    if(!confirm("عدد كبير. الأفضل 30-50. تتابع؟")) return;
+  }
+
+  printMode = mode;
+  applyPrintCSS(mode);
+
+  const slips = [];
+  const posBlocks = [];
+
+  for(const id of ids){
+    const inv = invoices.find(x=>x.id===id);
+    if(!inv) continue;
+
+    const { data: items } = await sb.from("invoice_items").select("*").eq("invoice_id", id).order("sort_order",{ascending:true});
+    const { data: pays }  = await sb.from("payments").select("*").eq("invoice_id", id).order("created_at",{ascending:true});
+
+    if(mode==="a4"){
+      slips.push(buildReceiptSlipHTML(inv, items||[], pays||[]));
+    }else{
+      // POS: نسختين فوق/تحت + فاصل
+      posBlocks.push(buildReceiptPOSHTML(inv, items||[], pays||[]));
+      posBlocks.push(`<div style="height:6mm"></div>`);
+    }
+  }
+
+  if(mode==="a4"){
+    if(!slips.length) return toast("لا يوجد بيانات للطباعة.");
+
+    const perPage = 5;
+    const pages = [];
+    for(let i=0;i<slips.length;i+=perPage){
+      const chunk = slips.slice(i, i+perPage);
+      while(chunk.length < perPage) chunk.push(`<div class="receipt empty"></div>`);
+      const isLast = (i + perPage) >= slips.length;
+      pages.push(`<div class="sheet">${chunk.join("")}</div>${isLast ? "" : `<div class="pageBreak"></div>`}`);
+    }
+
+    document.body.classList.add("bulk-printing");
+    $("printArea").innerHTML = pages.join("\n");
+  }else{
+    if(!posBlocks.length) return toast("لا يوجد بيانات للطباعة.");
+    document.body.classList.add("bulk-printing");
+    $("printArea").innerHTML = posBlocks.join("\n");
+  }
+
+  setTimeout(()=>window.print(), 50);
+
+  window.onafterprint = ()=>{
+    document.body.classList.remove("bulk-printing");
+    $("printArea").innerHTML = "";
+    window.onafterprint = null;
+  };
+}
+
+async function openInvoice(id){
+  currentInvoiceId = id;
+
+  const { data: inv, error: e1 } = await sb.from("invoices").select("*").eq("id", id).single();
+  if(e1) { toast("خطأ قراءة إيصال: " + e1.message); return; }
+
+  const { data: items, error: e2 } = await sb.from("invoice_items").select("*").eq("invoice_id", id).order("sort_order",{ascending:true});
+  if(e2) { toast("خطأ بنود: " + e2.message); return; }
+
+  const { data: pays, error: e3 } = await sb.from("payments").select("*").eq("invoice_id", id).order("created_at",{ascending:true});
+  if(e3) { toast("خطأ دفعات: " + e3.message); return; }
+
+  lastReceiptData = { inv, items: items||[], pays: pays||[] };
+
+  // شاشة الإيصال (مفصلة) — للطباعة POS أيضاً
+  $("invoiceView").innerHTML = buildReceiptPaperHTML(inv, items||[], pays||[], {forPrint:false, mode:printMode});
+  $("invPageTitle").textContent = "إيصال " + ((settings?.invoice_prefix||"REC") + "-" + invPublicNo(inv.invoice_no));
+
+  openInvoicePage();
+}
+
+/* =========================
+   RECEIPT BUILDERS
+   ========================= */
+
+/* A4 5-up slip (two copies side-by-side) */
+function buildReceiptSlipHTML(inv, items, pays){
+  const c = customers.find(x=>x.id===inv.customer_id);
+  const cNo = c ? (customerSeqMap.get(c.id)||"") : "";
+  const code = `${(settings?.invoice_prefix||"REC")}-${invPublicNo(inv.invoice_no)}`;
+  const cur = inv.currency || settings?.currency || "USD";
+
+  const companyName = esc(settings?.company_name||"WiFi Company");
+  const companyAddr = esc(settings?.company_address||"");
+  const companyPhone = esc(settings?.company_phone||"");
+
+  const first = (items && items[0]) ? unpackItem(items[0].description) : { plan:"—", month:"—", note:"" };
+  const planName = esc(first.plan||"—");
+  const monthLabel = esc(first.month||"—");
+  const note = esc(first.note||"");
+
+  const total = Number(inv.total ?? inv.subtotal ?? 0);
+  const paid  = Number(inv.paid ?? 0);
+  const balance = Number(inv.balance ?? (total - paid));
+
+  const logo = settings?.company_logo_url
+    ? `<img class="rlogo" src="${esc(settings.company_logo_url)}">`
+    : `<div class="rlogo alt">📶</div>`;
+
+  const custName = esc(c?.full_name||"—");
+  const custPhone = esc(c?.phone||"");
+  const custArea  = esc(c?.area||"");
+  const custAddr  = esc(c?.address||"");
+
+  function copy(label){
+    return `
+      <div class="copy">
+        <div class="rhead">
+          <div class="rbrand">
+            ${logo}
+            <div class="rbrandTxt">
+              <div class="rbrandName">${companyName}</div>
+              ${companyAddr ? `<div class="rbrandMeta">${companyAddr}</div>` : ``}
+              ${companyPhone ? `<div class="rbrandMeta">${companyPhone}</div>` : ``}
+            </div>
+          </div>
+          <div class="copyTag">${label}</div>
+        </div>
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>رقم الإيصال</span><b>${esc(code)}</b></div>
+        <div class="rrow"><span>تاريخ الإصدار</span><b>${esc(inv.issue_date||"")}</b></div>
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>المشترك</span><b>#${esc(cNo)} — ${custName}</b></div>
+        <div class="rmuted">${custPhone}${custArea?(" • "+custArea):""}</div>
+        ${custAddr ? `<div class="rmuted">العنوان: ${custAddr}</div>` : ``}
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>الباقة</span><b>${planName}</b></div>
+        <div class="rrow"><span>عن شهر</span><b>${monthLabel}</b></div>
+        ${note ? `<div class="rmuted">ملاحظة: ${note}</div>` : ``}
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>سعر الباقة</span><b>${money(total)} ${esc(cur)}</b></div>
+        <div class="rrow"><span>المدفوع</span><b>${money(paid)} ${esc(cur)}</b></div>
+        <div class="rrow"><span>المتبقي</span><b>${money(balance)} ${esc(cur)}</b></div>
+
+        <div class="rsig">
+          <span>توقيع</span>
+          <span>ختم</span>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="receipt receiptSlip">
+      <div class="receiptRow">
+        ${copy("نسخة الشركة")}
+        ${copy("نسخة المشترك")}
+      </div>
+    </div>
+  `;
+}
+
+/* POS 80mm: two copies stacked (company + customer) */
+function buildReceiptPOSHTML(inv, items, pays){
+  const c = customers.find(x=>x.id===inv.customer_id);
+  const cNo = c ? (customerSeqMap.get(c.id)||"") : "";
+  const cur = inv.currency || settings?.currency || "USD";
+  const code = `${(settings?.invoice_prefix||"REC")}-${invPublicNo(inv.invoice_no)}`;
+
+  const first = (items && items[0]) ? unpackItem(items[0].description) : { plan:"—", month:"—", note:"" };
+  const planName = esc(first.plan||"—");
+  const monthLabel = esc(first.month||"—");
+
+  const total = Number(inv.total ?? inv.subtotal ?? 0);
+  const paid  = Number(inv.paid ?? 0);
+  const balance = Number(inv.balance ?? (total - paid));
+
+  const companyName = esc(settings?.company_name||"WiFi Company");
+  const companyAddr = esc(settings?.company_address||"");
+  const companyPhone = esc(settings?.company_phone||"");
+  const logo = settings?.company_logo_url
+    ? `<img class="rlogo" src="${esc(settings.company_logo_url)}">`
+    : `<div class="rlogo alt">📶</div>`;
+
+  function copy(label){
+    return `
+      <div style="padding:10px 10px 8px 10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center">
+            ${logo}
+            <div>
+              <div style="font-weight:900;font-size:13px;line-height:1.1">${companyName}</div>
+              ${companyAddr?`<div style="font-size:10px;color:#666">${companyAddr}</div>`:``}
+              ${companyPhone?`<div style="font-size:10px;color:#666">${companyPhone}</div>`:``}
+            </div>
+          </div>
+          <div style="font-size:10px;font-weight:800;border:1px solid #ddd;border-radius:10px;padding:3px 8px;background:#f8fafc">${label}</div>
+        </div>
+
+        <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
+
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">رقم</span><b>${esc(code)}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">تاريخ</span><b>${esc(inv.issue_date||"")}</b></div>
+
+        <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
+
+        <div style="font-size:11px"><span style="color:#666">المشترك:</span> <b>#${esc(cNo)} — ${esc(c?.full_name||"—")}</b></div>
+        ${c?.address ? `<div style="font-size:10px;color:#666;margin-top:2px">العنوان: ${esc(c.address)}</div>` : ``}
+
+        <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
+
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">الباقة</span><b>${planName}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">عن شهر</span><b>${monthLabel}</b></div>
+
+        <div style="height:1px;background:#e5e7eb;margin:8px 0"></div>
+
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">سعر الباقة</span><b>${money(total)} ${esc(cur)}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">المدفوع</span><b>${money(paid)} ${esc(cur)}</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:#666">المتبقي</span><b>${money(balance)} ${esc(cur)}</b></div>
+
+        <div style="border-top:1px dashed #cbd5e1;margin-top:10px;padding-top:8px;font-size:10px;color:#666;display:flex;justify-content:space-between">
+          <span>توقيع</span><span>ختم</span>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="posPaper">
+      ${copy("نسخة الشركة")}
+      <div class="pos-sep"></div>
+      ${copy("نسخة المشترك")}
+    </div>
+  `;
+}
+
+/* Screen receipt (full, similar to old invoice paper) */
+function buildReceiptPaperHTML(inv, items, pays, opts){
+  const prefs = getPrefs();
+  const c = customers.find(x=>x.id===inv.customer_id);
+  const cNo = c ? (customerSeqMap.get(c.id)||"") : "";
+  const cur = inv.currency || settings?.currency || "USD";
+  const mode = opts?.mode || "a4";
+  const forPrint = !!opts?.forPrint;
+
+  const code = `${(settings?.invoice_prefix||"REC")}-${invPublicNo(inv.invoice_no)}`;
+  const companyName = esc(settings?.company_name||"WiFi Company");
+  const companyAddr = esc(settings?.company_address||"");
+  const companyPhone = esc(settings?.company_phone||"");
+
+  const first = (items && items[0]) ? unpackItem(items[0].description) : { plan:"—", month:"—", note:"" };
+  const planName = esc(first.plan||"—");
+  const monthLabel = esc(first.month||"—");
+  const note = esc(first.note||"");
+
+  const total = Number(inv.total ?? inv.subtotal ?? 0);
+  const paid  = Number(inv.paid ?? 0);
+  const balance = Number(inv.balance ?? (total - paid));
+
+  const logo = settings?.company_logo_url
+    ? `<img class="rlogo" src="${esc(settings.company_logo_url)}">`
+    : `<div class="rlogo alt">📶</div>`;
+
+  const paperW = forPrint
+    ? (mode==="pos" ? "80mm" : "190mm")
+    : (prefs.invW + "px");
+  const paperH = forPrint
+    ? "auto"
+    : (prefs.invH + "px");
+
+  function copy(label){
+    return `
+      <div class="copy">
+        <div class="rhead">
+          <div class="rbrand">
+            ${logo}
+            <div class="rbrandTxt">
+              <div class="rbrandName">${companyName}</div>
+              ${companyAddr ? `<div class="rbrandMeta">${companyAddr}</div>` : ``}
+              ${companyPhone ? `<div class="rbrandMeta">${companyPhone}</div>` : ``}
+            </div>
+          </div>
+          <div class="copyTag">${label}</div>
+        </div>
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>رقم الإيصال</span><b>${esc(code)}</b></div>
+        <div class="rrow"><span>تاريخ الإصدار</span><b>${esc(inv.issue_date||"")}</b></div>
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>المشترك</span><b>#${esc(cNo)} — ${esc(c?.full_name||"—")}</b></div>
+        <div class="rmuted">${esc(c?.phone||"")}${c?.area?(" • "+esc(c.area)):""}</div>
+        ${c?.address ? `<div class="rmuted">العنوان: ${esc(c.address)}</div>` : ``}
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>الباقة</span><b>${planName}</b></div>
+        <div class="rrow"><span>عن شهر</span><b>${monthLabel}</b></div>
+        ${note ? `<div class="rmuted">ملاحظة: ${note}</div>` : ``}
+
+        <div class="rline"></div>
+
+        <div class="rrow"><span>سعر الباقة</span><b>${money(total)} ${esc(cur)}</b></div>
+        <div class="rrow"><span>المدفوع</span><b>${money(paid)} ${esc(cur)}</b></div>
+        <div class="rrow"><span>المتبقي</span><b>${money(balance)} ${esc(cur)}</b></div>
+
+        <div class="rsig">
+          <span>توقيع</span>
+          <span>ختم</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const inner = (mode==="pos")
+    ? `<div class="receiptCol">
+        ${copy("نسخة الشركة")}
+        <div class="pos-sep"></div>
+        ${copy("نسخة المشترك")}
+      </div>`
+    : `<div class="receiptRow">
+        ${copy("نسخة الشركة")}
+        ${copy("نسخة المشترك")}
+      </div>`;
+
+  return `
+    <div class="invpaper receiptScreen" style="width:${paperW}; height:${paperH};">
+      ${inner}
+    </div>
+  `;
+}
+
+
+/* =========================
+   CUSTOMER MODAL
+   ========================= */
+function openCustomerModal(customerId){
+  currentCustomerId = customerId;
+  const c = customers.find(x=>x.id===customerId);
+  if(!c) return;
+
+  const no = customerSeqMap.get(c.id) || "";
+  $("custModalTitle").textContent = `ملف الزبون — #${no}`;
+
+  const custSubs = subs.filter(s=>s.customer_id===customerId);
+  const custInv = invoices.filter(i=>i.customer_id===customerId);
+
+  const subRows = custSubs.map(s=>`
+    <tr>
+      <td><b>${esc(s.plan_name||"—")}</b></td>
+      <td>${esc(s.start_date||"")} → ${esc(s.end_date||"")}</td>
+      <td>${badgeDays(s.days_left)}</td>
+    </tr>
+  `).join("");
+
+  const invRows = custInv.map(i=>{
+    const code = `${settings?.invoice_prefix||"REC"}-${invPublicNo(i.invoice_no)}`;
+    const total = Number(i.total ?? i.subtotal ?? 0);
+    const balance = Number(i.balance ?? (total - Number(i.paid||0)));
+    return `
+      <tr>
+        <td><b>${esc(code)}</b></td>
+        <td>${esc(i.issue_date||"")}</td>
+        <td>${money(total)} ${esc(i.currency||settings?.currency||"USD")}</td>
+        <td>${money(balance)}</td>
+        <td class="no-print"><button class="btn" type="button" onclick="openInvoice('${i.id}')">فتح</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  $("custModalBody").innerHTML = `
+    <div class="badge b-ok">بطاقة الزبون</div>
+    <div class="hr"></div>
+
+    <div class="card" style="padding:12px 14px;border-radius:18px;box-shadow:none">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:18px"><b>#${no} — ${esc(c.full_name)}</b></div>
+          <div class="tiny muted">${esc(c.phone||"")} • ${esc(c.area||"")}</div>
+          <div class="tiny muted">${esc(c.address||"")}</div>
+          <div class="tiny muted">${c.username ? ("يوزر: "+esc(c.username)) : ""}</div>
+        </div>
+        <div style="min-width:220px">
+          <div class="badge">عدد الإيصالات: <b>${custInv.length}</b></div>
+          <div style="height:8px"></div>
+          <button class="btn ok" type="button" onclick="setTab('invoices'); closeCustomerModal();">إنشاء إيصال</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <b>الاشتراكات</b>
+    <table>
+      <thead><tr><th>الباقة</th><th>المدة</th><th>المتبقي</th></tr></thead>
+      <tbody>${subRows || `<tr><td colspan="3" class="muted">لا يوجد اشتراكات.</td></tr>`}</tbody>
+    </table>
+
+    <div class="hr"></div>
+
+    <b>الإيصالات</b>
+    <table>
+      <thead><tr><th>رقم</th><th>تاريخ</th><th>الإجمالي</th><th>المتبقي</th><th class="no-print">فتح</th></tr></thead>
+      <tbody>${invRows || `<tr><td colspan="5" class="muted">لا يوجد إيصالات.</td></tr>`}</tbody>
+    </table>
+  `;
+
+  $("custModal").classList.add("show");
+}
+function closeCustomerModal(){
+  $("custModal").classList.remove("show");
+  currentCustomerId = null;
+}
+
+/* =========================
+   SETTINGS
+   ========================= */
+async function saveSettings(){
+  const payload = {
+    company_name: $("set_name")?.value?.trim() || "",
+    company_phone: $("set_phone")?.value?.trim() || "",
+    company_address: $("set_addr")?.value?.trim() || "",
+    company_logo_url: $("set_logo")?.value?.trim() || "",
+    invoice_prefix: ($("set_pref")?.value?.trim() || "REC"),
+    currency: ($("set_cur")?.value?.trim() || "USD")
+  };
+  if(!payload.company_name) return toast("اكتب اسم الشركة");
+
+  const { data: rows, error: e1 } = await sb.from("settings").select("*").order("created_at",{ascending:true}).limit(1);
+  if(e1) return toast("خطأ تحميل الإعدادات: " + e1.message);
+
+  if(rows?.length){
+    const { error } = await sb.from("settings").update(payload).eq("id", rows[0].id);
+    if(error) return toast("خطأ حفظ: " + error.message);
+  }else{
+    const { error } = await sb.from("settings").insert(payload);
+    if(error) return toast("خطأ حفظ: " + error.message);
+  }
+
+  toast("تم حفظ الإعدادات ✅");
+  closeFormModal();
+  await reloadAll(true);
+}
+
+function saveScreenPrefs(){
+  const w = Number($("pref_w")?.value||0);
+  const h = Number($("pref_h")?.value||0);
+  if(!w || !h) return toast("اكتب مقاس صحيح");
+  savePrefs(w, h);
+  toast("تم حفظ المقاس ✅");
+  closeFormModal();
+  renderCurrent();
+}
+
+function previewInvoiceSample(){
+  const fakeInv = {
+    id:"preview",
+    customer_id: customers?.[0]?.id || null,
+    invoice_no: 1,
+    issue_date: new Date().toISOString().slice(0,10),
+    currency:(settings?.currency||"USD"),
+    status:"unpaid",
+    subtotal:20, discount:0, total:20, paid:0, balance:20
+  };
+  const fakeItems = [{ description: packItem("GB 10", "الشهر 1 (الأول)", "معاينة"), qty:1, unit_price:20, sort_order:1 }];
+  const fakePays = [];
+  $("invoiceView").innerHTML = buildReceiptPaperHTML(fakeInv, fakeItems, fakePays, {forPrint:false, mode:printMode});
+  $("invPageTitle").textContent = "معاينة إيصال";
+  openInvoicePage();
+}
+
+async function handleLogoUpload(input){
+  const file = input.files?.[0];
+  if(!file) return;
+  if(file.size > 800*1024){
+    return toast("حجم الصورة كبير. جرّب صورة أصغر (أقل من 800KB).");
+  }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    $("set_logo").value = String(reader.result||"");
+    toast("تم إدخال اللوغو ✅ اضغط حفظ الإعدادات");
+  };
+  reader.readAsDataURL(file);
+}
+
+/* =========================
+   COUNTDOWN LOOP
+   ========================= */
+function startCountdownLoop(){
+  if(countdownTimer) return;
+  countdownTimer = setInterval(updateCountdowns, 1000);
+  updateCountdowns();
+}
+function updateCountdowns(){
+  if(TAB !== "countdown") return;
+  document.querySelectorAll(".ccard[data-end]").forEach(card=>{
+    const end = Number(card.getAttribute("data-end")||0);
+    const subId = card.getAttribute("data-sub");
+    const wrap = document.getElementById("cd_"+subId);
+    if(!wrap) return;
+
+    let diff = end - Date.now();
+    if(!Number.isFinite(diff)) diff = 0;
+    if(diff < 0) diff = 0;
+
+    const sec = Math.floor(diff/1000);
+    const days = Math.floor(sec/86400);
+    const hours = Math.floor((sec%86400)/3600);
+    const mins = Math.floor((sec%3600)/60);
+    const secs = Math.floor(sec%60);
+
+    const cells = wrap.querySelectorAll(".cd .n");
+    if(cells.length>=4){
+      cells[0].textContent = String(days);
+      cells[1].textContent = String(hours).padStart(2,"0");
+      cells[2].textContent = String(mins).padStart(2,"0");
+      cells[3].textContent = String(secs).padStart(2,"0");
+    }
+  });
+}
+
+/* =========================
+   Resume fix
+   ========================= */
+document.addEventListener("visibilitychange", ()=>{
+  if(!document.hidden){
+    const tooOld = (Date.now() - lastLoadedAt) > 15000;
+    if(tooOld) reloadAll(false);
+    else renderCurrent();
+    setTimeout(()=>{ updateHeaderH(); fitInvoiceToViewport(); }, 200);
+  }
+});
+window.addEventListener("pageshow", ()=>{
+  const tooOld = (Date.now() - lastLoadedAt) > 15000;
+  if(tooOld) reloadAll(false);
+});
+
+/* =========================
+   Robust errors for “site hangs”
+   ========================= */
+window.addEventListener("unhandledrejection", (e)=>{
+  console.error("Unhandled promise rejection:", e.reason);
+  $("authState").textContent = "مشكلة ⚠️";
+});
+window.addEventListener("error", (e)=>console.error(e.error||e.message||e));
+
+/* =========================
+   INIT
+   ========================= */
+(function init(){
+  updateHeaderH();
+
+  // ✅ Check Supabase library loaded (common “hang” cause on websites)
+  if(!window.supabase || !window.supabase.createClient){
+    $("authState").textContent = "Supabase CDN ⚠️";
+    toast("مكتبة Supabase ما تحمّلت. جرّب تحديث الصفحة أو تأكد من الإنترنت/الحظر.");
+    return;
+  }
+
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ✅ إذا فتحته كـ file:// على بعض الأجهزة قد يمنع الطلبات أو التخزين
+  try{
+    if(location.protocol === "file:"){
+      toast("ملاحظة: فتح الملف كـ file:// قد يسبب مشاكل على بعض الأجهزة. الأفضل فتحه كرابط (Netlify) أو داخل Chrome.");
+    }
+  }catch(e){}
+
+  reloadAll(true);
+})();
+</script>
+
+<style>
+  #snackbar{
+    position:fixed;
+    left:12px; right:12px;
+    bottom:calc(12px + env(safe-area-inset-bottom,0px));
+    background:rgba(15,23,42,.92);
+    color:#fff;
+    padding:12px 14px;
+    border-radius:14px;
+    box-shadow:0 18px 40px rgba(2,6,23,.25);
+    z-index:9998;
+    display:none;
+    font-size:13px;
+    line-height:1.4;
+  }
+  #snackbar.show{ display:block; }
+</style>
+<div id="snackbar" class="no-print"></div>
+
+</body>
+</html>
